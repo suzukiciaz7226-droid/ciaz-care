@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ciaz Care - บำรุงรักษา Suzuki Ciaz</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- PWA Meta Tags & Inline Manifest -->
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ciaz Care">
+  
+  <script>
+    // สร้าง PWA Manifest อัตโนมัติจาก Blob Data
+    const manifestJson = {
+      name: "Suzuki Ciaz Maintenance Tracker",
+      short_name: "Ciaz Care",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#0f172a",
+      theme_color: "#1e293b",
+      icons: [
+        {
+          src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text x='50%' y='55%' font-size='50' font-weight='bold' fill='white' dominant-baseline='central' text-anchor='middle'>SC</text></svg>",
+          sizes: "192x192",
+          type: "image/svg+xml"
+        }
+      ]
+    };
+    const stringManifest = JSON.stringify(manifestJson);
+    const blob = new Blob([stringManifest], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = manifestURL;
+    document.head.appendChild(manifestLink);
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12 font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
+          SZ
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight tracking-tight">Suzuki Ciaz</h1>
+          <p class="text-xs text-slate-400">K12B 1.2L Dualjet • CVT</p>
+        </div>
+      </div>
+      <button onclick="resetToDefaults()" title="ล้างเป็นค่าเริ่มต้น" class="p-2 text-slate-400 hover:text-rose-400 transition-colors">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 pt-4 space-x-0 space-y-4">
+
+    <!-- Current Mileage Card -->
+    <section class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="gauge" class="w-3.5 h-3.5 text-blue-400"></i> เลขไมล์ปัจจุบัน
+        </span>
+        <span id="lastUpdatedMileage" class="text-[11px] text-slate-500">บันทึกล่าสุด: -</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <input type="number" id="currentMileageInput" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xl font-bold tracking-tight text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            placeholder="เช่น 75000">
+          <span class="absolute right-3 top-3 text-xs font-medium text-slate-500">กม.</span>
+        </div>
+        <button onclick="updateCurrentMileage()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-md shadow-blue-600/30">
+          บันทึก
+        </button>
+      </div>
+    </section>
+
+    <!-- Quick Status Overview -->
+    <section class="grid grid-cols-3 gap-2 text-center">
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2.5">
+        <span class="block text-[11px] text-slate-400 font-medium">ปกติ</span>
+        <span id="statNormal" class="text-lg font-bold text-emerald-400 leading-snug">0</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2.5">
+        <span class="block text-[11px] text-slate-400 font-medium">ใกล้ครบกำหนด</span>
+        <span id="statDueSoon" class="text-lg font-bold text-amber-400 leading-snug">0</span>
+      </div>
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-2.5">
+        <span class="block text-[11px] text-slate-400 font-medium">เกินกำหนด</span>
+        <span id="statOverdue" class="text-lg font-bold text-rose-400 leading-snug">0</span>
+      </div>
+    </section>
+
+    <!-- Maintenance Task Cards List -->
+    <section>
+      <div class="flex items-center justify-between mb-2.5 px-0.5">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="wrench" class="w-3.5 h-3.5 text-blue-400"></i> รายการตรวจเช็ก & บำรุงรักษา
+        </h2>
+      </div>
+      <div id="taskList" class="space-y-3">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Update Maintenance Modal -->
+  <div id="recordModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 id="modalTitle" class="font-bold text-base text-white">บันทึกการเปลี่ยนอะไหล่</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">เลขไมล์ที่เปลี่ยน (กม.)</label>
+          <input type="number" id="modalMileage" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">วันที่เปลี่ยน</label>
+          <input type="date" id="modalDate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <p id="modalSpec" class="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed"></p>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl font-medium text-sm transition-colors">
+          ยกเลิก
+        </button>
+        <button onclick="saveRecord()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-medium text-sm transition-colors shadow-lg shadow-blue-600/30">
+          บันทึกข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ค่ามาตรฐานเฉพาะรุ่น Suzuki Ciaz K12B CVT
+    const DEFAULT_MAINTENANCE_SCHEDULE = [
+      {
+        id: "engine_oil",
+        name: "น้ำมันเครื่อง + ไส้กรอง + แหวนรอง",
+        intervalKm: 10000,
+        intervalMonths: 6,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "0W-20 สังเคราะห์แท้ (~3.1 ลิตร) พร้อมกรองและแหวนรองน็อตถ่าย"
+      },
+      {
+        id: "air_filter",
+        name: "กรองอากาศเครื่องยนต์",
+        intervalKm: 40000,
+        intervalMonths: 24,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "ตรวจเช็กเป่าลมทุก 20,000 กม. และเปลี่ยนทุก 40,000 กม."
+      },
+      {
+        id: "cabin_filter",
+        name: "กรองแอร์ห้องโดยสาร",
+        intervalKm: 20000,
+        intervalMonths: 12,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "เปลี่ยนทุก 20,000 กม. หรือปีละ 1 ครั้งเพื่อลดกลิ่นอับ"
+      },
+      {
+        id: "brake_fluid",
+        name: "น้ำมันเบรก",
+        intervalKm: 40000,
+        intervalMonths: 24,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "มาตรฐาน DOT 3 หรือ DOT 4"
+      },
+      {
+        id: "cvt_fluid",
+        name: "น้ำมันเกียร์ CVT",
+        intervalKm: 40000,
+        intervalMonths: 24,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "สำคัญมาก: ต้องใช้ Suzuki CVT Fluid Green-2 เท่านั้น"
+      },
+      {
+        id: "tire_rotation",
+        name: "สลับยาง + ถ่วงล้อ",
+        intervalKm: 10000,
+        intervalMonths: 6,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "ช่วยให้ดอกยางสึกเรียบสม่ำเสมอ ยืดอายุการใช้งาน"
+      },
+      {
+        id: "spark_plugs",
+        name: "หัวเทียน (Iridium)",
+        intervalKm: 100000,
+        intervalMonths: 60,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "หัวเทียนแท้ชนิดอิริเดียม อายุใช้งาน 100,000 กม."
+      },
+      {
+        id: "coolant",
+        name: "น้ำยาหล่อเย็นหม้อน้ำ",
+        intervalKm: 80000,
+        intervalMonths: 48,
+        lastKm: 0,
+        lastDate: new Date().toISOString().split('T')[0],
+        spec: "Suzuki Super Long Life Coolant (สีน้ำเงิน) ห้ามผสมน้ำเปล่า"
+      }
+    ];
+
+    let currentMileage = 0;
+    let tasks = [];
+    let activeEditingId = null;
+
+    // โหลดข้อมูลจาก LocalStorage
+    function initData() {
+      const storedMileage = localStorage.getItem('ciaz_current_mileage');
+      currentMileage = storedMileage ? parseInt(storedMileage, 10) : 0;
+      document.getElementById('currentMileageInput').value = currentMileage || '';
+
+      const storedTasks = localStorage.getItem('ciaz_tasks');
+      if (storedTasks) {
+        tasks = JSON.parse(storedTasks);
+      } else {
+        tasks = DEFAULT_MAINTENANCE_SCHEDULE;
+        saveTasks();
+      }
+
+      const lastSavedTime = localStorage.getItem('ciaz_last_updated');
+      if (lastSavedTime) {
+        document.getElementById('lastUpdatedMileage').textContent = `บันทึกล่าสุด: ${lastSavedTime}`;
+      }
+
+      renderUI();
+    }
+
+    function saveTasks() {
+      localStorage.setItem('ciaz_tasks', JSON.stringify(tasks));
+    }
+
+    function updateCurrentMileage() {
+      const val = parseInt(document.getElementById('currentMileageInput').value, 10);
+      if (isNaN(val) || val < 0) {
+        alert('กรุณาระบุเลขไมล์ที่ถูกต้อง');
+        return;
+      }
+      currentMileage = val;
+      const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem('ciaz_current_mileage', currentMileage);
+      localStorage.setItem('ciaz_last_updated', timeStr);
+      document.getElementById('lastUpdatedMileage').textContent = `บันทึกล่าสุด: ${timeStr}`;
+      renderUI();
+    }
+
+    function openRecordModal(taskId) {
+      activeEditingId = taskId;
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      document.getElementById('modalTitle').textContent = `บันทึก: ${task.name}`;
+      document.getElementById('modalMileage').value = currentMileage;
+      document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('modalSpec').textContent = `สเปกคำแนะนำ: ${task.spec}`;
+      document.getElementById('recordModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('recordModal').classList.add('hidden');
+      activeEditingId = null;
+    }
+
+    function saveRecord() {
+      const recordedKm = parseInt(document.getElementById('modalMileage').value, 10);
+      const recordedDate = document.getElementById('modalDate').value;
+
+      if (isNaN(recordedKm) || !recordedDate) {
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        return;
+      }
+
+      tasks = tasks.map(t => {
+        if (t.id === activeEditingId) {
+          return { ...t, lastKm: recordedKm, lastDate: recordedDate };
+        }
+        return t;
+      });
+
+      // ถ้าเลขไมล์ที่เปลี่ยนมากกว่าไมล์ปัจจุบัน ให้อัปเดตไมล์ปัจจุบันตาม
+      if (recordedKm > currentMileage) {
+        currentMileage = recordedKm;
+        document.getElementById('currentMileageInput').value = currentMileage;
+        localStorage.setItem('ciaz_current_mileage', currentMileage);
+      }
+
+      saveTasks();
+      closeModal();
+      renderUI();
+    }
+
+    function resetToDefaults() {
+      if (confirm('ต้องการรีเซ็ตประวัติและค่าทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?')) {
+        localStorage.removeItem('ciaz_tasks');
+        localStorage.removeItem('ciaz_current_mileage');
+        localStorage.removeItem('ciaz_last_updated');
+        location.reload();
+      }
+    }
+
+    function renderUI() {
+      const container = document.getElementById('taskList');
+      container.innerHTML = '';
+
+      let normalCount = 0;
+      let dueSoonCount = 0;
+      let overdueCount = 0;
+
+      const today = new Date();
+
+      tasks.forEach(task => {
+        // คำนวณระยะทาง
+        const nextDueKm = task.lastKm + task.intervalKm;
+        const kmRemaining = nextDueKm - currentMileage;
+
+        // คำนวณวันครบกำหนด
+        const lastDateObj = new Date(task.lastDate);
+        const nextDueDate = new Date(lastDateObj);
+        nextDueDate.setMonth(nextDueDate.getMonth() + task.intervalMonths);
+        
+        const diffTime = nextDueDate - today;
+        const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // ประเมินสถานะ (แดง = เกิน, เหลือง = ใกล้ครบกำหนด (เหลือ ≤ 1,500 กม. หรือ ≤ 30 วัน), เขียว = ปกติ)
+        let status = 'normal';
+        if (kmRemaining <= 0 || daysRemaining <= 0) {
+          status = 'overdue';
+          overdueCount++;
+        } else if (kmRemaining <= 1500 || daysRemaining <= 30) {
+          status = 'dueSoon';
+          dueSoonCount++;
+        } else {
+          normalCount++;
+        }
+
+        // Color theme mapping
+        let statusBadge = '';
+        let borderClass = 'border-slate-800';
+        let barColor = 'bg-blue-600';
+
+        if (status === 'overdue') {
+          borderClass = 'border-rose-500/50';
+          barColor = 'bg-rose-500';
+          statusBadge = `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">เกินกำหนด</span>`;
+        } else if (status === 'dueSoon') {
+          borderClass = 'border-amber-500/50';
+          barColor = 'bg-amber-500';
+          statusBadge = `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">ใกล้ครบกำหนด</span>`;
+        } else {
+          statusBadge = `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold">ปกติ</span>`;
+        }
+
+        const kmProgress = Math.min(100, Math.max(0, ((currentMileage - task.lastKm) / task.intervalKm) * 100));
+
+        const card = document.createElement('div');
+        card.className = `bg-slate-800/90 border ${borderClass} rounded-2xl p-4 shadow-sm space-y-3 transition-all`;
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="font-bold text-sm text-white">${task.name}</h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">${task.spec}</p>
+            </div>
+            ${statusBadge}
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+            <div class="${barColor} h-1.5 rounded-full transition-all duration-300" style="width: ${kmProgress}%"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs py-1 border-t border-slate-700/40">
+            <div>
+              <span class="text-slate-400 block text-[10px]">ระยะทางคงเหลือ</span>
+              <span class="font-semibold ${kmRemaining <= 0 ? 'text-rose-400' : 'text-slate-200'}">
+                ${kmRemaining <= 0 ? `เกินแล้ว ${Math.abs(kmRemaining).toLocaleString()} กม.` : `${kmRemaining.toLocaleString()} กม.`}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px]">เวลาคงเหลือ</span>
+              <span class="font-semibold ${daysRemaining <= 0 ? 'text-rose-400' : 'text-slate-200'}">
+                ${daysRemaining <= 0 ? `เกินแล้ว ${Math.abs(daysRemaining)} วัน` : `${daysRemaining} วัน`}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-[11px] text-slate-500">
+              ทำล่าสุด: ${task.lastKm.toLocaleString()} กม. (${task.lastDate})
+            </span>
+            <button onclick="openRecordModal('${task.id}')" class="text-xs bg-slate-700/80 hover:bg-slate-600 text-blue-300 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> ทำแล้ว
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('statNormal').textContent = normalCount;
+      document.getElementById('statDueSoon').textContent = dueSoonCount;
+      document.getElementById('statOverdue').textContent = overdueCount;
+
+      // อัปเดตไอคอน
+      lucide.createIcons();
+    }
+
+    // เริ่มการทำงานเมื่อโหลดหน้า
+    window.addEventListener('DOMContentLoaded', () => {
+      initData();
+    });
+  </script>
+</body>
+</html>
